@@ -10,6 +10,10 @@ ENV/
 .idea/
 .vscode/
 
+# Tableau Temporary / Backup files
+~*
+*.twbr
+
 # OS temporary files
 .DS_Store
 Thumbs.db
