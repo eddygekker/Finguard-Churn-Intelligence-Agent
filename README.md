@@ -2,6 +2,8 @@
 
 An end-to-end hybrid AI architecture for predictive customer retention in fintech banking, combining Machine Learning accuracy with Generative AI reasoning.
 
+![FinGuard Dashboard](dashboard.png)
+
 ## 🏗️ Project Architecture
 The platform processes data through four production-ready layers:
 1. **Data Warehouse Layer:** A relational `MySQL` database consolidating customer demographic and behavioral traits.
