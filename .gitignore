@@ -1,0 +1,15 @@
+# Secret API Keys and Passwords
+api_key.txt
+
+# Python Virtual Environment
+.venv/
+venv/
+ENV/
+
+# IDE Settings
+.idea/
+.vscode/
+
+# OS temporary files
+.DS_Store
+Thumbs.db
