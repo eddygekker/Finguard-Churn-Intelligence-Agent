@@ -2,8 +2,6 @@
 
 An end-to-end hybrid AI architecture for predictive customer retention in fintech banking, combining Machine Learning accuracy with Generative AI reasoning.
 
-![FinGuard Dashboard](Tableau/dashboard.png)
-
 ## 🏗️ Project Architecture
 The platform processes data through four production-ready layers:
 1. **Data Warehouse Layer:** A relational `MySQL` database consolidating customer demographic and behavioral traits.
@@ -18,9 +16,11 @@ The platform processes data through four production-ready layers:
 * **Generative AI:** google-genai SDK (Gemini 2.5 Flash)
 * **Business Intelligence:** Tableau (Executive Dashboarding)
 
+---
+
 ## 📦 How to Run Separately
 1. Clone the repository.
 2. Configure your local database and save your Gemini API key in `api_key.txt`.
 3. Install required packages:
-```bash
+   ```bash
    pip install pandas sqlalchemy pymysql scikit-learn google-genai
