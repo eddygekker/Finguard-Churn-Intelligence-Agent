@@ -1,9 +1,10 @@
 import os
+import time
 import pandas as pd
 from google import genai
-from main import train_predictive_engine
+from sqlalchemy import text
+from src.simulator import get_db_engine
 
-# Dynamically resolve paths for the root configuration files
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 API_KEY_PATH = os.path.join(BASE_DIR, 'api_key.txt')
 
@@ -23,7 +24,7 @@ def trigger_llm_agent(customer_profile, risk_prob, api_key):
     A high-value customer has been flagged by our Predictive Machine Learning Engine with a high risk of churning.
 
     CRITICAL INPUT METRICS:
-    - Calculated Churn Probability: {risk_prob:.2f}%
+    - Calculated Churn Probability: {risk_prob * 100:.2f}%
     - Customer Account Age (Months on book): {customer_profile['Months_on_book']} months
     - Total Inactive Months (Last 12 Months): {customer_profile['Months_Inactive_12_mon']} months
     - Credit Limit: ${customer_profile['Credit_Limit']}
@@ -54,33 +55,46 @@ def trigger_llm_agent(customer_profile, risk_prob, api_key):
     print("\n=============================================================================\n")
 
 
-def run_retention_pipeline():
-    print("🤖 Agent initializing: Training predictive engine...")
-    model, label_encoders, y_encoder, X_test = train_predictive_engine()
-    print("💥 Predictive engine trained and ready for inference.\n")
+def run_retention_pipeline(check_interval_seconds=5):
+    engine = get_db_engine()
 
-    secret_key = load_api_key()
+    try:
+        api_key = load_api_key()
+    except Exception as e:
+        print(f"[ERROR] Agent stopped: {e}")
+        return
 
-    print("🔍 Agent checking customer profile for churn risk...")
+    print("[AGENT] Retention Agent pipeline is running and listening for 'Pending_AI' customers...")
 
-    # Extract an actual high-risk customer profile sample
-    high_risk_sample = X_test.iloc[0]
+    while True:
+        try:
+            query = "SELECT * FROM bank_customers_stream WHERE retention_status = 'Pending_AI'"
+            alert_customers_df = pd.read_sql(query, con=engine)
 
-    # Calculate exact probability matrices
-    probabilities = model.predict_proba([high_risk_sample])
+            if not alert_customers_df.empty:
+                print(f"\n[AGENT] Detected {len(alert_customers_df)} high-risk profiles breach threshold!")
 
-    # Churn probability is usually index 0 depending on encoding, matching 'Attrited Customer'
-    risk_score = probabilities[0][0] * 100
+                for _, row in alert_customers_df.iterrows():
+                    client_num = int(row['CLIENTNUM'])
+                    risk_score = float(row['churn_probability'])
 
-    print(f"📈 Analyzed Risk: {risk_score:.2f}% probability of churning.")
+                    print(f"[AGENT] Activating LLM Generation for Client {client_num} (Risk: {risk_score * 100:.1f}%)")
 
-    # The Gatekeeper Business Rule Threshold (75%)
-    if risk_score > 75:
-        print("🚀 Risk threshold breached! Activating LLM Retention Agent...")
-        trigger_llm_agent(high_risk_sample, risk_score, secret_key)
-    else:
-        print("✅ Risk levels nominal. No downstream agent interaction required.")
+                    customer_profile = row.to_dict()
+                    trigger_llm_agent(customer_profile, risk_score, api_key)
 
+                    update_query = text(f"""
+                        UPDATE bank_customers_stream 
+                        SET retention_status = 'Processed_By_Agent'
+                        WHERE CLIENTNUM = {client_num}
+                    """)
 
-if __name__ == "__main__":
-    run_retention_pipeline()
+                    with engine.connect() as connection:
+                        connection.execute(update_query)
+
+                    print(f"[DATABASE] Client {client_num} updated to 'Processed_By_Agent'")
+
+        except Exception as e:
+            print(f"[ERROR] Agent pipeline encountered an error: {e}")
+
+        time.sleep(check_interval_seconds)
